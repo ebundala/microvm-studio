@@ -1,0 +1,11 @@
+# Build output
+bin/
+obj/
+publish/
+
+# Image build artifacts — large binaries, reproducible via `make`
+images/build/
+
+# Local dev overrides
+appsettings.Development.local.json
+*.user

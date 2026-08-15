@@ -1,0 +1,98 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MicroVMStudio.App.ViewModels"
+             xmlns:app="using:MicroVMStudio.App"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="1080" d:DesignHeight="800"
+             x:Class="MicroVMStudio.App.Views.VmListView"
+             x:DataType="vm:VmListViewModel">
+
+    <Grid ColumnDefinitions="*,Auto">
+        <DockPanel Margin="20">
+            <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,16">
+                <TextBlock Text="Virtual machines" FontSize="20" FontWeight="SemiBold"
+                           VerticalAlignment="Center" />
+                <Button Grid.Column="1" Content="Refresh" Margin="0,0,8,0"
+                        Command="{Binding RefreshCommand}" />
+                <Button Grid.Column="2" Content="New VM" Classes="accent"
+                        Command="{Binding NewCommand}" />
+            </Grid>
+
+            <Border DockPanel.Dock="Top" Background="#5A1A1A" Padding="12,8" Margin="0,0,0,12"
+                    IsVisible="{Binding Error, Converter={x:Static app:Converters.IsNotNullOrEmpty}}">
+                <TextBlock Text="{Binding Error}" Foreground="White" TextWrapping="Wrap" />
+            </Border>
+
+            <TextBlock DockPanel.Dock="Top" Margin="0,40,0,0"
+                       HorizontalAlignment="Center" Foreground="#8A8F98"
+                       Text="No VMs yet. Build an image on the Images page, then create one here."
+                       IsVisible="{Binding !Items.Count}" />
+
+            <ListBox ItemsSource="{Binding Items}"
+                     SelectedItem="{Binding Selected}"
+                     Background="Transparent">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:VmRowViewModel">
+                        <Grid ColumnDefinitions="2*,Auto,1.4*,1.6*,Auto,Auto" Margin="0,6">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding Resources}" FontSize="12" Foreground="#8A8F98" />
+                            </StackPanel>
+
+                            <Border Grid.Column="1" CornerRadius="10" Padding="10,3"
+                                    VerticalAlignment="Center" Margin="12,0"
+                                    Background="{Binding Status, Converter={x:Static app:Converters.StatusBrush}}">
+                                <TextBlock Text="{Binding Status}" Foreground="White" FontSize="11" />
+                            </Border>
+
+                            <TextBlock Grid.Column="2" Text="{Binding PrivateIp}"
+                                       VerticalAlignment="Center" FontFamily="monospace" />
+                            <TextBlock Grid.Column="3" Text="{Binding Uptime}"
+                                       VerticalAlignment="Center" Foreground="#8A8F98" />
+
+                            <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6"
+                                        VerticalAlignment="Center">
+                                <Button Content="Start" IsEnabled="{Binding CanStart}"
+                                        Command="{Binding $parent[ListBox].((vm:VmListViewModel)DataContext).StartCommand}"
+                                        CommandParameter="{Binding}" />
+                                <Button Content="Stop" IsEnabled="{Binding CanStop}"
+                                        Command="{Binding $parent[ListBox].((vm:VmListViewModel)DataContext).StopCommand}"
+                                        CommandParameter="{Binding}" />
+                                <Button Content="Restart" IsEnabled="{Binding !IsBusy}"
+                                        Command="{Binding $parent[ListBox].((vm:VmListViewModel)DataContext).RestartCommand}"
+                                        CommandParameter="{Binding}" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="6"
+                                        VerticalAlignment="Center" Margin="12,0,0,0">
+                                <!-- Off by default: the data disk is the only thing in a VM
+                                     that cannot be rebuilt from an image. -->
+                                <CheckBox Content="purge disk" IsChecked="{Binding PurgeDiskOnDelete}"
+                                          FontSize="11" VerticalAlignment="Center" />
+                                <Button Content="Delete"
+                                        Command="{Binding $parent[ListBox].((vm:VmListViewModel)DataContext).DeleteCommand}"
+                                        CommandParameter="{Binding}" />
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </DockPanel>
+
+        <Border Grid.Column="1" Width="520" BorderBrush="#2A2E35" BorderThickness="1,0,0,0"
+                IsVisible="{Binding Detail, Converter={x:Static app:Converters.IsNotNull}}">
+            <ContentControl Content="{Binding Detail}" />
+        </Border>
+
+        <!-- Create is a modal overlay rather than a separate window: it needs the
+             image and orphan-disk lists that this page already loaded. -->
+        <Border Grid.ColumnSpan="2" Background="#CC000000"
+                IsVisible="{Binding CreateForm, Converter={x:Static app:Converters.IsNotNull}}">
+            <Border Background="#1C1F24" CornerRadius="8" Padding="24"
+                    Width="560" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <ContentControl Content="{Binding CreateForm}" />
+            </Border>
+        </Border>
+    </Grid>
+</UserControl>

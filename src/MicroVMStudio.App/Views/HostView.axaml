@@ -1,0 +1,181 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MicroVMStudio.App.ViewModels"
+             xmlns:app="using:MicroVMStudio.App"
+             xmlns:orch="using:MicroVMStudio.Core.Orchestration"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
+             x:Class="MicroVMStudio.App.Views.HostView"
+             x:DataType="vm:HostViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="#8A8F98" />
+        </Style>
+        <Style Selector="TextBlock.value">
+            <Setter Property="FontFamily" Value="monospace" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer>
+        <StackPanel Margin="20" Spacing="14">
+
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="Host" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <Button Content="Refresh" Command="{Binding RefreshCommand}" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <Border Background="#1F2126" CornerRadius="6" Padding="14">
+                <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="Auto,10,*,Auto">
+                        <TextBlock Text="Helper" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8"
+                                    VerticalAlignment="Center">
+                            <TextBlock VerticalAlignment="Center"
+                                       Text="{Binding HelperConnected, Converter={x:Static app:Converters.PreflightGlyph}}"
+                                       Foreground="{Binding HelperConnected, Converter={x:Static app:Converters.PreflightBrush}}" />
+                            <TextBlock VerticalAlignment="Center"
+                                       Text="{Binding HelperConnected, StringFormat='connected: {0}'}" />
+                            <TextBlock VerticalAlignment="Center" Classes="label"
+                                       Text="{Binding HelperVersion, StringFormat='v{0}'}" />
+                        </StackPanel>
+                        <Button Grid.Column="3" Content="Reconnect" Command="{Binding ReconnectCommand}" />
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,*,*,*" RowDefinitions="Auto,Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="{Binding FirecrackerPresent, Converter={x:Static app:Converters.PreflightGlyph}}"
+                                       Foreground="{Binding FirecrackerPresent, Converter={x:Static app:Converters.PreflightBrush}}" />
+                            <TextBlock Text="firecracker" Classes="label" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="{Binding JailerPresent, Converter={x:Static app:Converters.PreflightGlyph}}"
+                                       Foreground="{Binding JailerPresent, Converter={x:Static app:Converters.PreflightBrush}}" />
+                            <TextBlock Text="jailer" Classes="label" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="{Binding KvmAccessible, Converter={x:Static app:Converters.PreflightGlyph}}"
+                                       Foreground="{Binding KvmAccessible, Converter={x:Static app:Converters.PreflightBrush}}" />
+                            <TextBlock Text="/dev/kvm" Classes="label" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="{Binding CgroupV2, Converter={x:Static app:Converters.PreflightGlyph}}"
+                                       Foreground="{Binding CgroupV2, Converter={x:Static app:Converters.PreflightBrush}}" />
+                            <TextBlock Text="cgroup v2" Classes="label" />
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock FontSize="11" Foreground="#6E7781" TextWrapping="Wrap"
+                               Text="If pkexec found no polkit agent to prompt with, start the helper by hand and press Reconnect:" />
+                    <SelectableTextBlock Text="{Binding ManualStartCommand}" Classes="value"
+                                         Foreground="#C9D1D9" />
+                </StackPanel>
+            </Border>
+
+            <Border Background="#1F2126" CornerRadius="6" Padding="14">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Configuration" FontWeight="SemiBold" />
+                    <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+                          RowSpacing="6">
+                        <TextBlock Text="Bridge" Classes="label" />
+                        <SelectableTextBlock Grid.Column="1" Classes="value"
+                                             Text="{Binding BridgeName}" />
+
+                        <TextBlock Grid.Row="1" Text="Bridge CIDR" Classes="label" />
+                        <SelectableTextBlock Grid.Row="1" Grid.Column="1" Classes="value"
+                                             Text="{Binding BridgeCidr}" />
+
+                        <TextBlock Grid.Row="2" Text="Egress interface" Classes="label" />
+                        <SelectableTextBlock Grid.Row="2" Grid.Column="1" Classes="value"
+                                             Text="{Binding EgressInterface}" />
+
+                        <TextBlock Grid.Row="3" Text="Proxy" Classes="label" />
+                        <SelectableTextBlock Grid.Row="3" Grid.Column="1" Classes="value"
+                                             Text="{Binding ProxyUrl}" />
+
+                        <TextBlock Grid.Row="4" Text="Helper socket" Classes="label" />
+                        <SelectableTextBlock Grid.Row="4" Grid.Column="1" Classes="value"
+                                             Text="{Binding HelperSocketPath}" />
+
+                        <TextBlock Grid.Row="5" Text="Database" Classes="label" />
+                        <SelectableTextBlock Grid.Row="5" Grid.Column="1" Classes="value"
+                                             Text="{Binding DatabasePath}" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Background="#1F2126" CornerRadius="6" Padding="14">
+                <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto,Auto">
+                        <TextBlock Text="Host cleanup" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Content="Scan" Margin="0,0,8,0"
+                                Command="{Binding ScanOrphansCommand}" />
+                        <Button Grid.Column="2" Content="Reclaim" Classes="accent"
+                                Command="{Binding ReclaimOrphansCommand}"
+                                IsEnabled="{Binding HasOrphans}" />
+                    </Grid>
+
+                    <TextBlock FontSize="11" Foreground="#6E7781" TextWrapping="Wrap"
+                               Text="Network namespaces, veth pairs and jailer chroots on this host with no matching VM. Reclaiming is never automatic — an orphan can also mean the database was lost while VMs kept running." />
+
+                    <TextBlock Text="No orphaned resources." Classes="label"
+                               IsVisible="{Binding !HasOrphans}" />
+
+                    <StackPanel Spacing="4" IsVisible="{Binding OrphanVeths.Count}">
+                        <TextBlock Text="Veth pairs" Classes="label" />
+                        <ItemsControl ItemsSource="{Binding OrphanVeths}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" Classes="value" Foreground="#BF8B00" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <StackPanel Spacing="4" IsVisible="{Binding OrphanChroots.Count}">
+                        <TextBlock Text="Jailer chroots" Classes="label" />
+                        <ItemsControl ItemsSource="{Binding OrphanChroots}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="orch:OrphanChroot">
+                                    <Grid ColumnDefinitions="*,120">
+                                        <TextBlock Text="{Binding VmId}" Classes="value" Foreground="#BF8B00" />
+                                        <TextBlock Grid.Column="1" Classes="value" Foreground="#BF8B00"
+                                                   Text="{Binding SizeBytes, StringFormat='{}{0:N0} B'}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Background="#1A3A2A" Padding="12,8" CornerRadius="4"
+                    IsVisible="{Binding AdoptionSummary, Converter={x:Static app:Converters.IsNotNullOrEmpty}}">
+                <TextBlock Text="{Binding AdoptionSummary}" Foreground="White" TextWrapping="Wrap" />
+            </Border>
+
+            <Border Background="#5A1A1A" Padding="12,8" CornerRadius="4"
+                    IsVisible="{Binding Error, Converter={x:Static app:Converters.IsNotNullOrEmpty}}">
+                <TextBlock Text="{Binding Error}" Foreground="White" TextWrapping="Wrap" />
+            </Border>
+
+            <Expander Header="Helper output">
+                <Border Background="#111317" CornerRadius="4" Padding="8" MaxHeight="240">
+                    <ScrollViewer>
+                        <ItemsControl ItemsSource="{Binding HelperOutput}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" FontFamily="monospace" FontSize="11"
+                                               Foreground="#C9D1D9" TextWrapping="NoWrap" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Border>
+            </Expander>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

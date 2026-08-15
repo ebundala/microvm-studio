@@ -1,0 +1,107 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MicroVMStudio.App.ViewModels"
+             xmlns:app="using:MicroVMStudio.App"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="520" d:DesignHeight="620"
+             x:Class="MicroVMStudio.App.Views.VmCreateView"
+             x:DataType="vm:VmCreateViewModel">
+
+    <StackPanel Spacing="14">
+        <TextBlock Text="New virtual machine" FontSize="18" FontWeight="SemiBold" />
+
+        <Border Background="#5A4A1A" Padding="12,8" CornerRadius="4"
+                IsVisible="{Binding !HasImages}">
+            <TextBlock TextWrapping="Wrap" Foreground="White"
+                       Text="You need both a kernel and a rootfs image before a VM can be created. Build them on the Images page." />
+        </Border>
+
+        <StackPanel Spacing="4">
+            <TextBlock Text="Name" FontSize="12" Foreground="#8A8F98" />
+            <TextBox Text="{Binding Name}" PlaceholderText="dev1" />
+            <TextBlock FontSize="11" Foreground="#6E7781" TextWrapping="Wrap"
+                       Text="Lowercase letters, digits and hyphens. This appears in the proxy URL: http://127.0.0.1:7000/vms/&lt;name&gt;/p/&lt;port&gt;/" />
+        </StackPanel>
+
+        <Grid ColumnDefinitions="*,12,*">
+            <StackPanel Spacing="4">
+                <TextBlock Text="Kernel image" FontSize="12" Foreground="#8A8F98" />
+                <ComboBox ItemsSource="{Binding Kernels}" SelectedItem="{Binding Kernel}"
+                          HorizontalAlignment="Stretch">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
+            <StackPanel Grid.Column="2" Spacing="4">
+                <TextBlock Text="Rootfs image" FontSize="12" Foreground="#8A8F98" />
+                <ComboBox ItemsSource="{Binding RootfsImages}" SelectedItem="{Binding Rootfs}"
+                          HorizontalAlignment="Stretch">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
+        </Grid>
+
+        <Grid ColumnDefinitions="*,12,*,12,*">
+            <StackPanel Spacing="4">
+                <TextBlock Text="vCPU" FontSize="12" Foreground="#8A8F98" />
+                <NumericUpDown Value="{Binding Vcpu}" Minimum="1" Maximum="32" Increment="1"
+                               FormatString="0" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Spacing="4">
+                <TextBlock Text="Memory (MiB)" FontSize="12" Foreground="#8A8F98" />
+                <NumericUpDown Value="{Binding MemoryMib}" Minimum="128" Maximum="65536"
+                               Increment="128" FormatString="0" />
+            </StackPanel>
+            <StackPanel Grid.Column="4" Spacing="4">
+                <TextBlock Text="Primary port" FontSize="12" Foreground="#8A8F98" />
+                <NumericUpDown Value="{Binding PrimaryPort}" Minimum="1" Maximum="65535"
+                               Increment="1" FormatString="0" />
+            </StackPanel>
+        </Grid>
+
+        <TextBlock FontSize="11" Foreground="#6E7781" TextWrapping="Wrap"
+                   Text="The primary port is what boot waits for: the VM is not Running until something inside it accepts a connection there." />
+
+        <Grid ColumnDefinitions="*,12,*">
+            <StackPanel Spacing="4">
+                <TextBlock Text="Data disk (GiB)" FontSize="12" Foreground="#8A8F98" />
+                <NumericUpDown Value="{Binding DiskSizeGib}" Minimum="1" Maximum="1024"
+                               Increment="1" FormatString="0"
+                               IsEnabled="{Binding CanSetDiskSize}" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Spacing="4">
+                <TextBlock Text="…or adopt an orphaned disk" FontSize="12" Foreground="#8A8F98" />
+                <ComboBox ItemsSource="{Binding AdoptableDisks}" SelectedItem="{Binding AdoptDisk}"
+                          PlaceholderText="Create a new disk" HorizontalAlignment="Stretch">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate><TextBlock Text="{Binding PathOnHost}" /></DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
+        </Grid>
+
+        <StackPanel Spacing="4">
+            <TextBlock Text="Restart policy" FontSize="12" Foreground="#8A8F98" />
+            <ComboBox ItemsSource="{Binding RestartPolicies}" SelectedItem="{Binding RestartPolicy}"
+                      HorizontalAlignment="Stretch" />
+        </StackPanel>
+
+        <CheckBox Content="Start immediately" IsChecked="{Binding StartImmediately}" />
+
+        <Border Background="#5A1A1A" Padding="12,8" CornerRadius="4"
+                IsVisible="{Binding Error, Converter={x:Static app:Converters.IsNotNullOrEmpty}}">
+            <TextBlock Text="{Binding Error}" Foreground="White" TextWrapping="Wrap" />
+        </Border>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+            <Button Content="Cancel" Command="{Binding CancelCommand}" />
+            <Button Content="Create" Classes="accent"
+                    Command="{Binding SubmitCommand}"
+                    IsEnabled="{Binding !Submitting}" />
+        </StackPanel>
+    </StackPanel>
+</UserControl>

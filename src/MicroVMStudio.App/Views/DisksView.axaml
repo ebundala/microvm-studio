@@ -1,0 +1,82 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MicroVMStudio.App.ViewModels"
+             xmlns:app="using:MicroVMStudio.App"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
+             x:Class="MicroVMStudio.App.Views.DisksView"
+             x:DataType="vm:DisksViewModel">
+
+    <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="20">
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" Margin="0,0,0,12">
+            <TextBlock Text="Disks" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <Button Content="Refresh" Command="{Binding RefreshCommand}" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="#6E7781" TextWrapping="Wrap"
+                       MaxWidth="520"
+                       Text="Orphaned disks come from deleting a VM with &quot;keep disk&quot;. They can be adopted by a new VM, which is how a workload's state survives a rebuild." />
+        </StackPanel>
+
+        <Border Grid.Row="1" Background="#1F2126" CornerRadius="6">
+            <Grid RowDefinitions="Auto,*">
+                <Grid Grid.Row="0" Margin="14,10" ColumnDefinitions="*,100,110,160,160">
+                    <TextBlock Text="PATH" FontSize="11" Foreground="#8A8F98" />
+                    <TextBlock Grid.Column="1" Text="SIZE" FontSize="11" Foreground="#8A8F98" />
+                    <TextBlock Grid.Column="2" Text="STATE" FontSize="11" Foreground="#8A8F98" />
+                    <TextBlock Grid.Column="3" Text="ATTACHED VM" FontSize="11" Foreground="#8A8F98" />
+                    <TextBlock Grid.Column="4" Text="CREATED" FontSize="11" Foreground="#8A8F98" />
+                </Grid>
+
+                <ScrollViewer Grid.Row="1">
+                    <ItemsControl ItemsSource="{Binding Disks}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:DiskRowViewModel">
+                                <Border BorderBrush="#2A2D33" BorderThickness="0,1,0,0" Padding="14,8">
+                                    <Grid ColumnDefinitions="*,100,110,160,160" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Path}" FontFamily="monospace" FontSize="11"
+                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Size}" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="2" Text="{Binding State}" VerticalAlignment="Center"
+                                                   Foreground="#8A8F98" />
+                                        <TextBlock Grid.Column="3" Text="{Binding VmId}" FontFamily="monospace"
+                                                   FontSize="11" Foreground="#8A8F98"
+                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="4" Text="{Binding CreatedAt}" FontSize="12"
+                                                   Foreground="#8A8F98" VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="2" Background="#5A4A1A" CornerRadius="6" Padding="14" Margin="0,12,0,0"
+                IsVisible="{Binding UntrackedFiles.Count}">
+            <StackPanel Spacing="8">
+                <TextBlock Text="Files with no database row" FontWeight="SemiBold" Foreground="White" />
+                <TextBlock FontSize="11" Foreground="#E8DCC0" TextWrapping="Wrap"
+                           Text="Left behind by a delete that failed partway. Sizes are actual on-disk usage — these images are sparse, so a 20 GiB disk may only occupy a few hundred MiB." />
+                <ItemsControl ItemsSource="{Binding UntrackedFiles}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:UntrackedFileViewModel">
+                            <Grid ColumnDefinitions="*,120" Margin="0,2">
+                                <TextBlock Text="{Binding Path}" FontFamily="monospace" FontSize="11"
+                                           Foreground="White" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="1" Text="{Binding Size}" FontSize="11"
+                                           Foreground="White" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="3" Background="#5A1A1A" Padding="12,8" CornerRadius="4" Margin="0,12,0,0"
+                IsVisible="{Binding Error, Converter={x:Static app:Converters.IsNotNullOrEmpty}}">
+            <TextBlock Text="{Binding Error}" Foreground="White" TextWrapping="Wrap" />
+        </Border>
+    </Grid>
+</UserControl>

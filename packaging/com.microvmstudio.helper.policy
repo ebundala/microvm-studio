@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/software/polkit/policyconfig-1.dtd">
+
+<!--
+  Without this file pkexec still works, but falls back to the generic
+  org.freedesktop.policykit.exec action, whose dialog just says "Run a program
+  as another user" with no indication of what is being authorized.
+
+  allow_active is auth_admin_keep so an active local session is prompted once
+  per polkit timeout rather than on every app launch. Inactive and remote
+  sessions get no implicit grant at all.
+-->
+<policyconfig>
+
+  <vendor>MicroVM Studio</vendor>
+
+  <action id="com.microvmstudio.helper.run">
+    <description>Run the MicroVM Studio privileged helper</description>
+    <message>MicroVM Studio needs administrator access to create network interfaces, manage disk images, and launch Firecracker virtual machines.</message>
+    <icon_name>computer</icon_name>
+
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/microvm-studio/helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
+  </action>
+
+</policyconfig>

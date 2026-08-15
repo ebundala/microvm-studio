@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.32.1" />
+    <PackageReference Include="Grpc.Tools" Version="2.76.0" PrivateAssets="All" />
+    <PackageReference Include="Grpc.Net.Client" Version="2.76.0" />
+    <PackageReference Include="Grpc.AspNetCore.Server" Version="2.76.0" />
+  </ItemGroup>
+
+  <!-- Both the helper (server) and the app (client) consume the same contract. -->
+  <ItemGroup>
+    <Protobuf Include="protos\helper-rpc.proto" GrpcServices="Both" />
+  </ItemGroup>
+
+</Project>

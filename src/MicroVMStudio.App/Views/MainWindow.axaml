@@ -1,0 +1,67 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:MicroVMStudio.App.ViewModels"
+        xmlns:app="using:MicroVMStudio.App"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
+        x:Class="MicroVMStudio.App.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Width="1280" Height="800"
+        Title="MicroVM Studio">
+
+    <Window.Resources>
+        <app:SectionActiveConverter x:Key="SectionActive" />
+    </Window.Resources>
+
+    <Window.Styles>
+        <Style Selector="Button.nav">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Padding" Value="16,10" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="FontSize" Value="14" />
+        </Style>
+    </Window.Styles>
+
+    <DockPanel>
+        <!-- Nothing in this app works without the helper, so its state is the
+             first thing shown and it stays pinned above every view. -->
+        <Border DockPanel.Dock="Top"
+                Background="#5A1A1A"
+                Padding="16,10"
+                IsVisible="{Binding !HelperConnected}">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Privileged helper not connected"
+                               FontWeight="SemiBold" Foreground="White" />
+                    <TextBlock Text="{Binding HelperMessage}"
+                               Foreground="#F0D0D0" TextWrapping="Wrap"
+                               IsVisible="{Binding HelperMessage, Converter={x:Static app:Converters.IsNotNullOrEmpty}}" />
+                </StackPanel>
+                <Button Grid.Column="1"
+                        Content="Reconnect"
+                        Command="{Binding ConnectHelperCommand}"
+                        IsEnabled="{Binding !Connecting}"
+                        VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+
+        <Border DockPanel.Dock="Left" Width="200" Background="#1C1F24">
+            <StackPanel Spacing="2" Margin="0,16">
+                <TextBlock Text="MicroVM Studio"
+                           Margin="16,0,16,20" FontSize="16" FontWeight="Bold" />
+                <Button Classes="nav" Content="VMs"
+                        Command="{Binding NavigateCommand}" CommandParameter="VMs" />
+                <Button Classes="nav" Content="Images"
+                        Command="{Binding NavigateCommand}" CommandParameter="Images" />
+                <Button Classes="nav" Content="Disks"
+                        Command="{Binding NavigateCommand}" CommandParameter="Disks" />
+                <Button Classes="nav" Content="Host"
+                        Command="{Binding NavigateCommand}" CommandParameter="Host" />
+            </StackPanel>
+        </Border>
+
+        <ContentControl Content="{Binding Current}" />
+    </DockPanel>
+</Window>

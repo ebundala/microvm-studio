@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MicroVMStudio.App/MicroVMStudio.App.csproj" />
+    <Project Path="src/MicroVMStudio.Contracts/MicroVMStudio.Contracts.csproj" />
+    <Project Path="src/MicroVMStudio.Core/MicroVMStudio.Core.csproj" />
+    <Project Path="src/MicroVMStudio.Helper/MicroVMStudio.Helper.csproj" />
+  </Folder>
+</Solution>

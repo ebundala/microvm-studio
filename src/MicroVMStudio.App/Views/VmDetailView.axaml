@@ -1,0 +1,213 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MicroVMStudio.App.ViewModels"
+             xmlns:app="using:MicroVMStudio.App"
+             xmlns:ctl="using:MicroVMStudio.App.Controls"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="520" d:DesignHeight="800"
+             x:Class="MicroVMStudio.App.Views.VmDetailView"
+             x:DataType="vm:VmDetailViewModel">
+
+    <DockPanel Margin="16">
+        <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,12">
+            <TextBlock Text="{Binding Vm.Name}" FontSize="18" FontWeight="SemiBold" />
+            <TextBlock FontSize="12" Foreground="#8A8F98"
+                       Text="{Binding Vm.Status, StringFormat='Status: {0}'}" />
+        </StackPanel>
+
+        <Border DockPanel.Dock="Top" Background="#5A1A1A" Padding="12,8" Margin="0,0,0,12"
+                IsVisible="{Binding Error, Converter={x:Static app:Converters.IsNotNullOrEmpty}}">
+            <TextBlock Text="{Binding Error}" Foreground="White" TextWrapping="Wrap" />
+        </Border>
+
+        <TabControl>
+            <TabItem Header="Overview">
+                <ScrollViewer>
+                    <StackPanel Spacing="10" Margin="0,12">
+                        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+                            <TextBlock Text="Private IP" Foreground="#8A8F98" />
+                            <TextBlock Grid.Column="1" Text="{Binding Vm.PrivateIp}" FontFamily="monospace" />
+
+                            <TextBlock Grid.Row="1" Text="Jailer PID" Foreground="#8A8F98" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Vm.FirecrackerPid}" />
+
+                            <TextBlock Grid.Row="2" Text="Network ns" Foreground="#8A8F98" />
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Vm.NetnsName}"
+                                       FontFamily="monospace" />
+
+                            <TextBlock Grid.Row="3" Text="vsock CID" Foreground="#8A8F98" />
+                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Vm.VsockCid}" />
+
+                            <TextBlock Grid.Row="4" Text="Resources" Foreground="#8A8F98" />
+                            <TextBlock Grid.Row="4" Grid.Column="1">
+                                <Run Text="{Binding Vm.Vcpu}" /><Run Text=" vCPU · " /><Run Text="{Binding Vm.MemoryMib}" /><Run Text=" MiB" />
+                            </TextBlock>
+
+                            <TextBlock Grid.Row="5" Text="Restart policy" Foreground="#8A8F98" />
+                            <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Vm.RestartPolicy}" />
+                        </Grid>
+
+                        <TextBlock Text="Timeline" FontWeight="SemiBold" Margin="0,12,0,0" />
+                        <ItemsControl ItemsSource="{Binding Events}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="150,*" Margin="0,3">
+                                        <TextBlock Text="{Binding OccurredAt, StringFormat='{}{0:HH:mm:ss}'}"
+                                                   Foreground="#6E7781" FontSize="12" />
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="{Binding EventType}" FontSize="12" />
+                                            <!-- Failure payloads carry {code, detail}; this is
+                                                 usually the fastest answer to "why didn't it boot". -->
+                                            <TextBlock Text="{Binding PayloadJson}" FontSize="11"
+                                                       Foreground="#C08080" TextWrapping="Wrap"
+                                                       IsVisible="{Binding PayloadJson, Converter={x:Static app:Converters.IsNotNullOrEmpty}}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Services">
+                <ScrollViewer>
+                    <StackPanel Spacing="8" Margin="0,12">
+                        <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#8A8F98"
+                                   Text="Services the guest declared in /etc/mvm/services.json, plus the stock terminal and file browser. Each is proxied from localhost." />
+
+                        <ItemsControl ItemsSource="{Binding Services}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ServiceLinkViewModel">
+                                    <Border Background="#22262C" CornerRadius="4" Padding="12" Margin="0,4">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <StackPanel Spacing="3">
+                                                <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding Url}" FontSize="11"
+                                                           Foreground="#6E7781" FontFamily="monospace"
+                                                           TextWrapping="Wrap" />
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Content="Open"
+                                                    VerticalAlignment="Center"
+                                                    IsEnabled="{Binding Available}"
+                                                    Command="{Binding $parent[ItemsControl].((vm:VmDetailViewModel)DataContext).OpenServiceCommand}"
+                                                    CommandParameter="{Binding}" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Shell">
+                <Border Background="#111317" CornerRadius="4" Padding="6" Margin="0,12">
+                    <ctl:TerminalView Url="{Binding ShellUrl}"
+                                      FontFamily="monospace" FontSize="13"
+                                      Background="#111317" Foreground="#D4D4D4"
+                                      CursorBlink="True" />
+                </Border>
+            </TabItem>
+
+            <TabItem Header="Logs">
+                <DockPanel Margin="0,12">
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8"
+                                Margin="0,0,0,8">
+                        <Button Content="Pause" Command="{Binding TogglePauseLogsCommand}" />
+                        <Button Content="Clear" Command="{Binding ClearLogsCommand}" />
+                        <TextBlock Text="paused" Foreground="#BF8B00" VerticalAlignment="Center"
+                                   IsVisible="{Binding LogsPaused}" />
+                    </StackPanel>
+                    <Border Background="#0E1013" CornerRadius="4" Padding="8">
+                        <ScrollViewer>
+                            <ItemsControl ItemsSource="{Binding LogLines}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" FontFamily="monospace"
+                                                   FontSize="11" TextWrapping="Wrap" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Border>
+                </DockPanel>
+            </TabItem>
+
+            <TabItem Header="Secrets">
+                <DockPanel Margin="0,12">
+                    <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,12">
+                        <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#8A8F98"
+                                   Text="Delivered through MMDS and written to /run/secrets/&lt;KEY&gt; in the guest. The guest polls every 10 seconds, so changes reach a running VM without a restart." />
+                        <Grid ColumnDefinitions="*,8,*,8,Auto">
+                            <TextBox Text="{Binding NewSecretKey}" PlaceholderText="OPENROUTER_API_KEY" />
+                            <TextBox Grid.Column="2" Text="{Binding NewSecretValue}"
+                                     PasswordChar="•" PlaceholderText="value" />
+                            <Button Grid.Column="4" Content="Add" Command="{Binding AddSecretCommand}" />
+                        </Grid>
+                    </StackPanel>
+
+                    <ItemsControl ItemsSource="{Binding Secrets}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,4">
+                                    <TextBlock Text="{Binding Key}" FontFamily="monospace"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" FontSize="11" Foreground="#6E7781"
+                                               VerticalAlignment="Center" Margin="0,0,8,0"
+                                               Text="{Binding UpdatedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" />
+                                    <Button Grid.Column="2" Content="Remove"
+                                            Command="{Binding $parent[ItemsControl].((vm:VmDetailViewModel)DataContext).DeleteSecretCommand}"
+                                            CommandParameter="{Binding}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DockPanel>
+            </TabItem>
+
+            <TabItem Header="Egress">
+                <DockPanel Margin="0,12">
+                    <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,12">
+                        <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#8A8F98"
+                                   Text="Rules are evaluated in priority order and rebuilt on the host in full when applied. Edits here are not live until you press Apply." />
+                        <Grid ColumnDefinitions="*,8,Auto,8,Auto">
+                            <TextBox Text="{Binding NewRuleCidr}" PlaceholderText="0.0.0.0/0" />
+                            <ComboBox Grid.Column="2" SelectedItem="{Binding NewRuleEffect}">
+                                <ComboBox.Items>
+                                    <x:Static Member="app:EgressEffects.Allow" />
+                                    <x:Static Member="app:EgressEffects.Deny" />
+                                </ComboBox.Items>
+                            </ComboBox>
+                            <Button Grid.Column="4" Content="Add" Command="{Binding AddEgressRuleCommand}" />
+                        </Grid>
+                    </StackPanel>
+
+                    <Button DockPanel.Dock="Bottom" Content="Apply to host firewall"
+                            HorizontalAlignment="Right" Classes="accent"
+                            Command="{Binding ApplyEgressRulesCommand}" />
+
+                    <ItemsControl ItemsSource="{Binding EgressRules}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,4">
+                                    <TextBlock Text="{Binding Cidr}" FontFamily="monospace"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Effect}"
+                                               VerticalAlignment="Center" Margin="0,0,12,0" />
+                                    <TextBlock Grid.Column="2" Text="{Binding Priority}"
+                                               Foreground="#6E7781" VerticalAlignment="Center"
+                                               Margin="0,0,8,0" />
+                                    <Button Grid.Column="3" Content="Remove"
+                                            Command="{Binding $parent[ItemsControl].((vm:VmDetailViewModel)DataContext).RemoveEgressRuleCommand}"
+                                            CommandParameter="{Binding}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DockPanel>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</UserControl>

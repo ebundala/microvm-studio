@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>microvm-studio-helper</AssemblyName>
+    <RootNamespace>MicroVMStudio.Helper</RootNamespace>
+    <!-- Required by the LibraryImport source generator (kill(2), chown(2)). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!-- Native AOT: no JIT, fast startup, and no .NET runtime required at the
+         install site. Only the helper is AOT-published; Avalonia is not. -->
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MicroVMStudio.Contracts\MicroVMStudio.Contracts.csproj" />
+  </ItemGroup>
+
+  <!-- Deliberately no Grpc.AspNetCore.Server.Reflection: it trips IL2075 under
+       AOT, and the only client is our own app, which has the contract compiled in. -->
+
+</Project>

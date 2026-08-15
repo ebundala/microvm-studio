@@ -1,0 +1,290 @@
+// MicroVM Studio — Privileged Helper RPC Contract
+//
+// Transport: gRPC over UNIX domain socket at /run/microvm-studio-helper.sock
+// Server:    microvm-studio-helper (root + CAP_NET_ADMIN/CAP_DAC_OVERRIDE/CAP_SYS_ADMIN/CAP_KILL)
+// Client:    MicroVMStudio.App, running unprivileged as the desktop user
+//
+// Derived from ShopCare's app/Helper/protos/helper-rpc.proto with all tenant
+// scoping removed: one host, one user, one bridge.
+//
+// Design notes:
+//  - Every method is idempotent in effect: re-running with the same inputs MUST be safe.
+//  - Errors are typed; the client maps known error_codes to specific lifecycle states.
+//  - The helper logs every call with the caller-provided trace_id.
+
+syntax = "proto3";
+
+package mvm.helper.v1;
+
+service VmHelper {
+  // ── Liveness ──
+  rpc Ping (Empty) returns (PingResponse);
+
+  // ── Host bridge / per-VM netns / veth ──
+  rpc EnsureHostBridge (EnsureHostBridgeRequest) returns (EnsureHostBridgeResponse);
+  rpc DestroyHostBridge (DestroyHostBridgeRequest) returns (Empty);
+  rpc CreateVmNetns (CreateVmNetnsRequest) returns (CreateVmNetnsResponse);
+  rpc DestroyVmNetns (DestroyVmNetnsRequest) returns (Empty);
+
+  // ── Egress rules (CIDR only) ──
+  // Rebuilt in full on every call — declarative, not incremental.
+  rpc ApplyVmEgressRules (ApplyVmEgressRulesRequest) returns (Empty);
+
+  // ── Disk file lifecycle ──
+  rpc CreateDiskImage (CreateDiskImageRequest) returns (Empty);
+  rpc LinkDiskIntoChroot (LinkDiskIntoChrootRequest) returns (Empty);
+  rpc DeleteDiskImage (DeleteDiskImageRequest) returns (Empty);
+  // Diagnostic: the DB row for a disk is hard-deleted even when DeleteDiskImage
+  // failed, so orphan files can only be found by scanning the host and diffing
+  // against live VmDisk.PathOnHost values.
+  rpc ListDiskFiles (ListDiskFilesRequest) returns (ListDiskFilesResponse);
+
+  // ── Jailer / Firecracker lifecycle ──
+  rpc LaunchJailer (LaunchJailerRequest) returns (LaunchJailerResponse);
+  rpc KillJailer (KillJailerRequest) returns (Empty);
+  rpc ReadJailerStatus (ReadJailerStatusRequest) returns (ReadJailerStatusResponse);
+  rpc DeleteJailerChroot (DeleteJailerChrootRequest) returns (Empty);
+
+  // ── Firecracker API socket proxy ──
+  // Single-shot proxied HTTP call into the per-VM FC API socket inside its chroot.
+  rpc FirecrackerApiCall (FirecrackerApiCallRequest) returns (FirecrackerApiCallResponse);
+
+  // ── Image catalog (kernel/rootfs files) ──
+  // ImagesDir is root-owned; the unprivileged app can read images (to pass
+  // paths to LinkDiskIntoChroot) but cannot write them. The helper does the
+  // write, content-addresses the result, and returns path + digest for the app
+  // to register in SQLite.
+  rpc WriteImageFile (stream WriteImageFileChunk) returns (WriteImageFileResponse);
+  rpc DeleteImageFile (DeleteImageFileRequest) returns (Empty);
+
+  // ── Host diagnostics (leak detection) ──
+  rpc ListHostVeths (Empty) returns (ListHostVethsResponse);
+  rpc DeleteHostVeth (DeleteHostVethRequest) returns (Empty);
+  rpc ListJailerChroots (ListJailerChrootsRequest) returns (ListJailerChrootsResponse);
+}
+
+message Empty {}
+
+message PingResponse {
+  string version = 1;
+  // Host preflight, evaluated on every ping so the Host view can show live status.
+  bool firecracker_present = 2;
+  bool jailer_present = 3;
+  bool kvm_accessible = 4;
+  bool cgroup_v2 = 5;
+  string egress_interface = 6;   // auto-detected via `ip route get 1.1.1.1`
+}
+
+// ── Host bridge ──
+message EnsureHostBridgeRequest {
+  string trace_id = 1;
+  string bridge_name = 2;        // e.g. "mvm0"
+  string cidr = 3;               // e.g. "10.100.0.0/24"
+}
+
+message EnsureHostBridgeResponse {
+  bool created = 1;              // true if newly created, false if already existed
+}
+
+message DestroyHostBridgeRequest {
+  string trace_id = 1;
+  string bridge_name = 2;
+}
+
+// ── Per-VM netns/veth ──
+message CreateVmNetnsRequest {
+  string trace_id = 1;
+  string vm_id = 2;
+  string netns_name = 3;          // e.g. "mvm-abcd1234"
+  string bridge_name = 4;
+  string private_ip_cidr = 5;     // e.g. "10.100.0.42/24" — informational; guest self-configures from cmdline
+  string gateway_ip = 6;          // e.g. "10.100.0.1" — informational; guest default route
+  uint32 runtime_uid = 7;         // TAP is chowned to this so FC (post-jailer setuid) can open it
+  uint32 runtime_gid = 8;
+}
+
+message CreateVmNetnsResponse {
+  string host_veth_name = 1;
+  string netns_veth_name = 2;
+  string tap_name = 3;            // pass this as Firecracker's `host_dev_name`
+}
+
+message DestroyVmNetnsRequest {
+  string trace_id = 1;
+  string netns_name = 2;
+  string host_veth_name = 3;
+}
+
+// ── Egress rules ──
+message ApplyVmEgressRulesRequest {
+  string trace_id = 1;
+  string vm_id = 2;
+  string private_ip = 3;         // source address the rules apply to
+  repeated CidrRule rules = 4;   // rebuilt fully on each call
+}
+
+message CidrRule {
+  string cidr = 1;
+  enum Effect { ALLOW = 0; DENY = 1; }
+  Effect effect = 2;
+  int32 priority = 3;
+}
+
+// ── Disk file lifecycle ──
+message CreateDiskImageRequest {
+  string trace_id = 1;
+  string disk_id = 2;
+  string path_on_host = 3;
+  enum Format { RAW = 0; QCOW2 = 1; }
+  Format format = 4;
+  int32 size_gib = 5;
+  uint32 owner_uid = 6;
+  uint32 owner_gid = 7;
+}
+
+message LinkDiskIntoChrootRequest {
+  string trace_id = 1;
+  string disk_id = 2;
+  string disk_host_path = 3;
+  string chroot_root_path = 4;   // <chroot_base>/firecracker/<vm-id>/root
+  bool use_bind_mount = 5;       // false = hard link (kernel/rootfs are shared inodes)
+  string target_name = 6;        // "rootfs.img" | "vmlinux.bin" | "data.img"
+}
+
+message DeleteDiskImageRequest {
+  string trace_id = 1;
+  string disk_id = 2;
+  string path_on_host = 3;
+  bool secure_overwrite = 4;
+}
+
+message ListDiskFilesRequest {
+  string disks_dir = 1;          // caller-supplied; helper doesn't own config
+}
+
+message ListDiskFilesResponse {
+  repeated HostDiskFile files = 1;
+}
+
+message HostDiskFile {
+  string path_on_host = 1;
+  int64 size_bytes = 2;    // actual on-disk usage (`du`-equivalent) — these files
+                           // are sparse, so logical size grossly overstates what
+                           // deleting one actually frees
+}
+
+// ── Jailer ──
+message LaunchJailerRequest {
+  string trace_id = 1;
+  string vm_id = 2;
+  string firecracker_binary_path = 3;
+  string netns_name = 4;
+  uint32 uid = 5;
+  uint32 gid = 6;
+  string chroot_base_dir = 7;
+  CgroupLimits cgroup = 8;
+  repeated string firecracker_args = 9;  // appended after `--`
+}
+
+message CgroupLimits {
+  int32 vcpu = 1;                   // converted to cpu.max
+  int64 memory_bytes = 2;
+  int64 io_read_bps = 3;
+  int64 io_write_bps = 4;
+  int32 pids_max = 5;
+  string io_device_major_minor = 6; // e.g. "259:0"
+}
+
+message LaunchJailerResponse {
+  int64 pid = 1;                  // jailer PID — the supervised parent
+  string chroot_root_path = 2;
+}
+
+message KillJailerRequest {
+  string trace_id = 1;
+  int64 pid = 2;
+  bool graceful = 3;              // SIGTERM + 10s wait, then SIGKILL
+}
+
+message ReadJailerStatusRequest {
+  string trace_id = 1;
+  int64 pid = 2;
+}
+
+message ReadJailerStatusResponse {
+  bool alive = 1;
+  int32 exit_code = 2;            // valid when alive=false
+}
+
+message DeleteJailerChrootRequest {
+  string trace_id = 1;
+  string chroot_base_dir = 2;
+  string vm_id = 3;
+}
+
+// ── Firecracker API socket proxy ──
+message FirecrackerApiCallRequest {
+  string trace_id = 1;
+  string vm_id = 2;               // helper resolves the chroot path from this
+  string method = 3;              // GET / PUT / PATCH
+  string path = 4;                // e.g. "/machine-config", "/boot-source"
+  bytes body = 5;                 // application/json, may be empty
+  int32 timeout_ms = 6;
+}
+
+message FirecrackerApiCallResponse {
+  int32 status = 1;
+  bytes body = 2;
+  string error_code = 3;          // empty on success; e.g. "fc_unreachable", "timeout"
+}
+
+// ── Image catalog ──
+// First chunk carries metadata only (data empty); every chunk after carries
+// `data` and leaves metadata at defaults — client-streaming gRPC has no separate
+// header message, so this is the idiomatic way to pass both in one round-trip.
+message WriteImageFileChunk {
+  string trace_id = 1;
+  string images_dir = 2;    // caller-supplied — first chunk only
+  string kind_prefix = 3;   // "kernel" | "rootfs" — first chunk only
+  string slug = 4;          // filename component, e.g. "vmlinux" or "alpine" — first chunk only
+  string extension = 5;     // "bin" | "ext4" — first chunk only
+  bytes data = 6;
+}
+
+message WriteImageFileResponse {
+  string digest = 1;        // "sha256:<hex>"
+  string path_on_host = 2;
+}
+
+message DeleteImageFileRequest {
+  string trace_id = 1;
+  string path_on_host = 2;
+}
+
+// ── Host diagnostics ──
+message ListHostVethsResponse {
+  repeated HostVeth veths = 1;
+}
+
+message HostVeth {
+  string name = 1;          // e.g. "vh-546df738"
+  string master_bridge = 2; // e.g. "mvm0" — empty if not attached to a bridge
+}
+
+message DeleteHostVethRequest {
+  string trace_id = 1;
+  string name = 2;
+}
+
+message ListJailerChrootsRequest {
+  string chroot_base_dir = 1;
+}
+
+message ListJailerChrootsResponse {
+  repeated JailerChroot chroots = 1;
+}
+
+message JailerChroot {
+  string vm_id = 1;          // directory name under {chroot_base_dir}/firecracker/
+  int64 size_bytes = 2;      // recursive size of the whole per-VM chroot tree
+}
