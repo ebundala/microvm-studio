@@ -1,3 +1,4 @@
+using Grpc.Core;
 using MicroVMStudio.Core.Data;
 using MicroVMStudio.Core.Helper;
 using MicroVMStudio.Core.Models;
@@ -170,8 +171,24 @@ public sealed class HostAdoptionService(
             }, cancellationToken: ct);
             return status.Alive;
         }
+        catch (Grpc.Core.RpcException ex) when (ex.StatusCode == Grpc.Core.StatusCode.Unavailable
+                                                 || ex.StatusCode == Grpc.Core.StatusCode.DeadlineExceeded
+                                                 || ex.StatusCode == Grpc.Core.StatusCode.ResourceExhausted)
+        {
+            // Transient gRPC errors (connection issues, timeouts) — do NOT mark the VM as dead.
+            // Leave it in Running state; the reconciler will re-check on its next tick.
+            logger.LogWarning(ex, "Transient gRPC error reading jailer status for pid {Pid}; skipping adoption for this VM.", pid);
+            return true; // Assume alive to avoid falsely marking running VMs as crashed
+        }
+        catch (HelperUnavailableException ex)
+        {
+            // Helper not connected — same as above, don't mark as dead
+            logger.LogWarning(ex, "Helper unavailable when reading jailer status for pid {Pid}; skipping adoption.", pid);
+            return true;
+        }
         catch (Exception ex)
         {
+            // Any other error (e.g., process genuinely not found) — log and assume dead
             logger.LogWarning(ex, "Could not read jailer status for pid {Pid}; assuming dead.", pid);
             return false;
         }
